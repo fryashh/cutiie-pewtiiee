@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>For My Special One | By Yashu</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;700&family=Quicksand:wght@500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #fff5f7;
+            --primary: #ffafcc;
+            --accent: #fb6f92;
+            --text: #7c3a47;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Fredoka', sans-serif; cursor: none; }
+
+        body {
+            background-color: var(--bg);
+            background-image: linear-gradient(rgba(255, 245, 247, 0.6), rgba(255, 245, 247, 0.6));
+            background-size: cover;
+            background-position: center;
+            height: 100vh; width: 100vw; overflow: hidden;
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        #cursor {
+            position: fixed; width: 15px; height: 15px; background: var(--accent);
+            border-radius: 50%; pointer-events: none; z-index: 99999;
+            box-shadow: 0 0 15px var(--primary);
+            transition: transform 0.1s ease-out;
+        }
+
+        .container { text-align: center; z-index: 10; padding: 20px; max-width: 600px; }
+
+        h1 {
+            font-size: clamp(1.8rem, 7vw, 3.5rem);
+            color: var(--accent); margin-bottom: 20px;
+            transition: all 0.6s ease; line-height: 1.2;
+        }
+
+        .scratch-container {
+            position: relative;
+            width: 320px; height: 320px;
+            margin: 0 auto 20px;
+            display: none;
+            border-radius: 30px;
+            overflow: hidden;
+            border: 8px solid white;
+            box-shadow: 0 10px 40px rgba(251, 111, 146, 0.3);
+            /* Floating Polaroid 3D Tilt support */
+            transform-style: preserve-3d;
+            transition: transform 0.15s ease-out, box-shadow 0.2s ease-out;
+            will-change: transform;
+        }
+
+        .scratch-image {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            object-fit: fill;
+            z-index: 1;
+        }
+
+        #scratch-canvas {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 2;
+            touch-action: none;
+            transition: opacity 0.8s ease;
+        }
+
+        /* Auto-Reveal Polaroid Caption */
+        .polaroid-caption {
+            min-height: 28px;
+            font-size: 1.15rem;
+            color: var(--text);
+            font-weight: 700;
+            margin-bottom: 10px;
+            opacity: 0;
+            transform: translateY(8px);
+            transition: opacity 0.5s ease, transform 0.5s ease;
+            text-shadow: 0 2px 10px rgba(255, 175, 204, 0.5);
+        }
+
+        .polaroid-caption.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(12px);
+            border: 2px solid white; padding: 18px 38px; border-radius: 40px;
+            box-shadow: 0 10px 20px rgba(251, 111, 146, 0.1);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            font-weight: 700; color: var(--accent); display: inline-block;
+        }
+
+        .back-btn {
+            margin-top: 15px; font-size: 0.9rem; opacity: 0; pointer-events: none;
+            display: block; color: var(--accent); text-decoration: underline;
+        }
+
+        .back-btn.show { opacity: 0.8; pointer-events: auto; }
+
+        .signature { position: fixed; bottom: 25px; right: 25px; font-size: 0.8rem; color: var(--text); }
+        .signature span { background: var(--accent); color: white; padding: 4px 12px; border-radius: 20px; font-weight: bold; }
+
+        .particle { position: fixed; pointer-events: none; z-index: 9999; animation: floatUp 2s ease-out forwards; }
+        @keyframes floatUp {
+            0% { transform: translateY(0) scale(1); opacity: 1; }
+            100% { transform: translateY(-130px) scale(0); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <audio id="bg-music" loop>
+        <source src="love-song.mp3" type="audio/mpeg">
+    </audio>
+
+    <div id="cursor"></div>
+    <div class="signature">Handcrafted with 💖 by <span>YASHU</span></div>
+
+    <div class="container">
+        <h1 id="title">hiii babyyieee &lt;3</h1>
+        <p id="msg" style="color: var(--text); margin-bottom: 30px;">A special surprise is waiting for you... ✨🎀</p>
+        
+        <div class="scratch-container" id="scratch-box">
+            <img src="hansu1.jpg" class="scratch-image" alt="Cute Reveal">
+            <canvas id="scratch-canvas" width="304" height="304"></canvas>
+        </div>
+
+        <div class="polaroid-caption" id="polaroid-caption"></div>
+
+        <div class="glass-card" id="btn" onclick="triggerSurprise()">TAP FOR A SURPRISE 💖</div>
+        <a href="javascript:void(0)" class="back-btn" id="back" onclick="location.reload()">← Restart Surprise</a>
+    </div>
+
+    <script>
+        const music = document.getElementById('bg-music');
+        const cursor = document.getElementById('cursor');
+        const title = document.getElementById('title');
+        const msg = document.getElementById('msg');
+        const btn = document.getElementById('btn');
+        const scratchBox = document.getElementById('scratch-box');
+        const canvas = document.getElementById('scratch-canvas');
+        const ctx = canvas.getContext('2d');
+        const captionEl = document.getElementById('polaroid-caption');
+
+        let isScratching = false;
+        let isAutoRevealed = false;
+        let scratchMoves = 0;
+        let lastVibrate = 0;
+
+        // Helper for safe Android phone haptics
+        function vibratePhone(pattern) {
+            if (navigator.vibrate) {
+                try { navigator.vibrate(pattern); } catch (e) {}
+            }
+        }
+
+        // Typewriter effect for Polaroid Caption
+        function typeCaption(text) {
+            captionEl.classList.add('show');
+            captionEl.innerHTML = '';
+            let idx = 0;
+            const timer = setInterval(() => {
+                captionEl.innerHTML += text.charAt(idx);
+                idx++;
+                if (idx >= text.length) clearInterval(timer);
+            }, 55);
+        }
+
+        // Check how much of the card is scratched off
+        function checkRevealProgress() {
+            if (isAutoRevealed) return;
+            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+            let clearPixels = 0;
+            const totalPixels = imgData.length / 4;
+
+            for (let i = 3; i < imgData.length; i += 16) {
+                if (imgData[i] < 128) clearPixels++;
+            }
+
+            const clearedRatio = clearPixels / (totalPixels / 4);
+            if (clearedRatio > 0.62) {
+                isAutoRevealed = true;
+                canvas.style.opacity = '0';
+                canvas.style.pointerEvents = 'none';
+
+                // Celebratory heartbeat vibration on full reveal
+                vibratePhone([90, 50, 90, 50, 180]);
+
+                // Burst of sparkles around the revealed photo
+                const rect = scratchBox.getBoundingClientRect();
+                for (let i = 0; i < 18; i++) {
+                    setTimeout(() => {
+                        const rx = rect.left + Math.random() * rect.width;
+                        const ry = rect.top + Math.random() * rect.height;
+                        spawnParticle(rx, ry);
+                    }, i * 55);
+                }
+
+                // Trigger typewriter Polaroid caption
+                typeCaption("Cutiiieeee pewtiiee 🧸🎀💖✨");
+            }
+        }
+
+        // 3D Floating Polaroid Tilt calculation
+        function applyPolaroidTilt(clientX, clientY) {
+            if (scratchBox.style.display !== 'block') return;
+            const rect = scratchBox.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            const deltaX = (clientX - centerX) / (rect.width / 2);
+            const deltaY = (clientY - centerY) / (rect.height / 2);
+
+            const rotateY = Math.max(-12, Math.min(12, deltaX * 10));
+            const rotateX = Math.max(-12, Math.min(12, -deltaY * 10));
+
+            scratchBox.style.transform = `perspective(700px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.02)`;
+        }
+
+        function resetPolaroidTilt() {
+            if (scratchBox.style.display !== 'block') return;
+            scratchBox.style.transform = `perspective(700px) rotateX(0deg) rotateY(0deg) scale(1)`;
+        }
+
+        function initScratchCard() {
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.fillStyle = '#ffafcc'; 
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#7c3a47'; 
+            ctx.font = 'bold 22px Fredoka';
+            ctx.textAlign = 'center';
+            ctx.fillText('Scratch Me! 🎀', canvas.width/2, canvas.height/2);
+            
+            const scratch = (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+                const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+                const x = clientX - rect.left;
+                const y = clientY - rect.top;
+
+                ctx.globalCompositeOperation = 'destination-out';
+                ctx.beginPath();
+                ctx.arc(x, y, 35, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Fingertip Sparkle Trail while scratching
+                if (Math.random() > 0.65) {
+                    spawnParticle(clientX, clientY);
+                }
+
+                // Gentle tactile haptic tick while scratching (throttled)
+                const now = Date.now();
+                if (now - lastVibrate > 90) {
+                    vibratePhone(10);
+                    lastVibrate = now;
+                }
+
+                // 3D Polaroid Tilt while rubbing the card
+                applyPolaroidTilt(clientX, clientY);
+
+                // Check if ~65% is scratched to auto-reveal
+                scratchMoves++;
+                if (scratchMoves % 8 === 0) {
+                    checkRevealProgress();
+                }
+            };
+
+            canvas.addEventListener('mousedown', () => isScratching = true);
+            canvas.addEventListener('touchstart', (e) => {
+                isScratching = true;
+                if (e.touches && e.touches[0]) {
+                    spawnParticle(e.touches[0].clientX, e.touches[0].clientY);
+                    vibratePhone(15);
+                }
+                e.preventDefault();
+            });
+            window.addEventListener('mouseup', () => { isScratching = false; resetPolaroidTilt(); });
+            window.addEventListener('touchend', () => { isScratching = false; resetPolaroidTilt(); });
+            canvas.addEventListener('mousemove', (e) => { if(isScratching) scratch(e); });
+            canvas.addEventListener('touchmove', (e) => { if(isScratching) scratch(e); e.preventDefault(); });
+        }
+
+        function triggerSurprise() {
+            // Heartbeat vibration on initial tap
+            vibratePhone([70, 50, 110]);
+
+            // Song plays immediately on tap
+            music.play().catch(e => console.log("Playback started"));
+            
+            title.style.opacity = '0';
+            msg.style.display = 'none';
+            btn.style.display = 'none';
+            
+            setTimeout(() => {
+                title.innerHTML = "You are and you will always be my special one 🧸🎀✨";
+                title.style.opacity = '1';
+                scratchBox.style.display = 'block';
+                initScratchCard();
+                document.getElementById('back').classList.add('show');
+            }, 500);
+
+            for(let i=0; i<15; i++) {
+                setTimeout(() => spawnParticle(window.innerWidth/2, window.innerHeight/2), i*70);
+            }
+        }
+
+        let mx = 0, my = 0, cx = 0, cy = 0;
+        document.addEventListener('mousemove', (e) => {
+            mx = e.clientX; my = e.clientY;
+            if (Math.random() > 0.9) spawnParticle(e.clientX, e.clientY);
+            applyPolaroidTilt(e.clientX, e.clientY);
+        });
+
+        // Fingertip Sparkle Trails + 3D Tilt anywhere on Android touch screen
+        document.addEventListener('touchmove', (e) => {
+            if (e.touches && e.touches[0]) {
+                const tx = e.touches[0].clientX;
+                const ty = e.touches[0].clientY;
+                mx = tx; my = ty;
+                if (Math.random() > 0.6) spawnParticle(tx, ty);
+                applyPolaroidTilt(tx, ty);
+            }
+        }, { passive: true });
+
+        document.addEventListener('touchstart', (e) => {
+            if (e.touches && e.touches[0]) {
+                const tx = e.touches[0].clientX;
+                const ty = e.touches[0].clientY;
+                mx = tx; my = ty;
+                spawnParticle(tx, ty);
+            }
+        }, { passive: true });
+
+        function spawnParticle(x, y) {
+            const p = document.createElement('div');
+            const icons = ['🌸', '✨', '💖', '🎀', '🧸'];
+            p.innerHTML = icons[Math.floor(Math.random() * icons.length)];
+            p.className = 'particle';
+            p.style.left = x + 'px'; p.style.top = y + 'px';
+            document.body.appendChild(p);
+            setTimeout(() => p.remove(), 2000);
+        }
+
+        function updateCursor() {
+            cx += (mx - cx) * 0.15; cy += (my - cy) * 0.15;
+            cursor.style.left = cx + 'px'; cursor.style.top = cy + 'px';
+            cursor.style.transform = `translate(-50%, -50%)`;
+            requestAnimationFrame(updateCursor);
+        }
+        updateCursor();
+    </script>
+</body>
+</html>
